@@ -15,7 +15,7 @@ import java.security.KeyStore
 import java.security.cert.Certificate
 import java.security.cert.X509Certificate
 
-logger = ExecutionUtil.getBaseLogger()
+def logger = ExecutionUtil.getBaseLogger()
 
 // set up constants
 int BUFFER_SIZE = 1024 * 4 // 4 KB
@@ -29,7 +29,7 @@ int QUERY_PREFIX_LEN = QUERY_PREFIX.length()
 CookieHandler.setDefault(null);
 
 // gather scripting environment variables
-ExecutionTask task = ExecutionManager.current
+def task = ExecutionManager.current
 
 Properties execProps = task.properties
 DataContextImpl context = dataContext
@@ -64,7 +64,11 @@ for (entry in execProps.entrySet()) {
   String k = entry.key
   String v = entry.value as String
   if (k.startsWith(QUERY_PREFIX)) {
-    queryParams << k.substring(QUERY_PREFIX_LEN) + '=' + URLEncoder.encode(v, 'UTF-8')
+    if (v == null || v.size() == 0) {
+      queryParams << k.substring(QUERY_PREFIX_LEN)
+    } else {
+      queryParams << k.substring(QUERY_PREFIX_LEN) + '=' + URLEncoder.encode(v, 'UTF-8')
+    }
   }
 }
 
@@ -72,30 +76,37 @@ if (queryParams.size() > 0) {
   path += '?' + queryParams.join('&')
 }
 
-logger.info("path: " + path)
+def urlString = HTTP_PROXY_URL_BASE + '/' + path
+logger.info("urlString: " + urlString)
 
-URL url = new URL(HTTP_PROXY_URL_BASE + '/' + path)
+URL url = new URL(urlString)
 
 logger.info("loading certificate...")
 // setup use of the trusted SSL certificate
-SSLContext sc = SSLContext.getInstance("SSLv3")
+SSLContext sc = SSLContext.getInstance("TLS")
 boolean HAS_TRUSTED_CERT = CERT_ID != null && CERT_ID.size()
 boolean IS_HTTPS = url.protocol == 'https'
 boolean USE_TRUSTED_CERT = IS_HTTPS && HAS_TRUSTED_CERT
 
 class TrustAllHostnameVerifier implements HostnameVerifier {
+  static logger = ExecutionUtil.getBaseLogger()
   public boolean verify(String hostname, SSLSession session) {
+    logger.info("loading certificate...")
     return true;
   }
 }
 
 class TrustAllTrustManager implements X509TrustManager {
+  static logger = ExecutionUtil.getBaseLogger()
   public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+    logger.info("getAcceptedIssuers")
     return null;
   }
   public void checkClientTrusted(X509Certificate[] certs, String authType) {
+    logger.info("checkClientTrusted")
   }
   public void checkServerTrusted(X509Certificate[] certs, String authType) {
+    logger.info("checkServerTrusted")
   }
 }
 
@@ -117,8 +128,6 @@ if (IS_HTTPS) {
     trustManagers = [new TrustAllTrustManager()];
   }
   sc.init(null, trustManagers, null)
-} else if (url.protocol == 'https') {
-
 }
 
 logger.info("loaded certificate.")
@@ -159,15 +168,18 @@ context.getDataCount().times { i ->
     }
   }
 
-  logger.info("skipping request...")
-
-  context.storeStream(docData, docProps)
-  return
+  // logger.info("skipping request...")
+  //
+  // context.storeStream(docData, docProps)
+  // return
 
   logger.info("making request...")
 
   // retrieve response, set response code
-  docProps.setProperty('document.dynamic.userdefined.outstatuscode', "${conn.responseCode}")
+  def responseCode = conn.responseCode
+
+  logger.info("completed request")
+  docProps.setProperty('document.dynamic.userdefined.outstatuscode', "${responseCode}")
 
   // set response headers
   Map<String, List<String>> headerFields = conn.headerFields
@@ -184,9 +196,11 @@ context.getDataCount().times { i ->
     }
   }
   def setCookieHeaders = headerFields.get('Set-Cookie')
-  for (int ci in 0..<setCookieHeaders.size()) {
-    def setCookieHeader = setCookieHeaders.get(ci)
-    execProps.setProperty('setCookieHeader_' + ci, setCookieHeader)
+  if (setCookieHeaders != null) {
+    for (int ci in 0..<setCookieHeaders.size()) {
+      def setCookieHeader = setCookieHeaders.get(ci)
+      execProps.setProperty('setCookieHeader_' + ci, setCookieHeader)
+    }
   }
 
 

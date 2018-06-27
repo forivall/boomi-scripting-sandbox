@@ -1,8 +1,8 @@
 {
   "name": "groovy-sandbox",
+  "version": "0.0.0",
   "private": true,
   "bin": {
-    "split-uniques": "bin/split-uniques.sh",
     "run-boomi-script": "bin/run-boomi-script.sh"
   }
 }

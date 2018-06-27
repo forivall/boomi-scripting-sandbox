@@ -13,10 +13,10 @@ import java.security.cert.X509Certificate
 
 // URL url = new URL("https://integration-dv910.ledsyn.local:7594/jderest/defaultconfig")
 httpMethod = 'GET'
-URL url = new URL("https://loajwl-lb:8688/jderest/defaultconfig")
+URL url = new URL("https://httpbin.org/get?foo=bar")
 
-SSLContext.getDefault()
-SSLContext sc = SSLContext.getInstance("SSLv3")
+SSLContext sc = SSLContext.getInstance("TLSv1.2")
+sc.init()
 
 // Create all-trusting host name verifier
 class TrustAllHostnameVerifierReq implements HostnameVerifier {

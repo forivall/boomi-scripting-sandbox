@@ -4,13 +4,19 @@ import com.boomi.connector.api.PayloadUtil
 import com.boomi.container.config.AccountConfig
 import com.boomi.container.config.ContainerConfig
 import com.boomi.document.api.InboundDocument
-import com.boomi.document.scripting.DataContextImpl as BoomiDataContextImpl
+
 import com.boomi.store.BaseData
 import com.forivall.boomi.DataContextImpl
+import com.forivall.boomi.ExecutionManager
+import com.forivall.boomi.ExecutionTask
+import com.forivall.boomi.ExecutionUtil
 import groovy.transform.Field
 import org.codehaus.groovy.control.CompilerConfiguration
 import org.codehaus.groovy.control.customizers.ImportCustomizer
+import org.codehaus.groovy.runtime.InvokerHelper
 
+import java.security.AccessController
+import java.security.PrivilegedAction
 import java.util.logging.ConsoleHandler
 import java.util.logging.Logger
 
@@ -52,7 +58,7 @@ class EmptyDocument implements InboundDocument {
   InputStream _is
   Properties _p
   EmptyDocument(String propertiesFile) {
-    EmptyDocument()
+    this()
     _p.load(new FileInputStream(propertiesFile))
   }
   EmptyDocument() {
@@ -109,104 +115,6 @@ class FileDocument implements InboundDocument {
   }
 }
 
-class DataContext implements DataContextImpl {
-  static interface DataContextOutput {
-    OutputStream get(int index)
-  }
-  static class FileOutput implements DataContextOutput {
-    String outPath = 'output%d.json'
-    OutputStream get(int index) {
-      return new FileOutputStream(String.format(outPath, index), true)
-    }
-  }
-  static class PipeOutput implements DataContextOutput {
-    OutputStream dest = System.out
-    OutputStream get(int index) {
-      return dest
-    }
-  }
-  private static systemOut = new PipeOutput(dest: System.out)
-  protected static logger = Logger.getLogger('DataContext')
-  private boolean used;
-  private List<InboundDocument> _documents
-  private Integer storedCount = 0
-  private DataContextOutput output
-
-  DataContext(List<InboundDocument> documents) {
-    this(documents, systemOut)
-  }
-  DataContext(List<InboundDocument> documents, String outPath) {
-    this(documents, new FileOutput(outPath: outPath))
-  }
-  DataContext(List<InboundDocument> documents, DataContextOutput output) {
-    _documents = documents
-    this.output = output
-  }
-
-  public void setCombineAll(boolean combineAll) { /* void */ }
-
-  public List<Properties> getMetaDataList() {
-    return new BoomiDataContextImpl.MetaDataList();
-  }
-
-  public List<InputStream> getStreamList() {
-    return new BoomiDataContextImpl.StreamList();
-  }
-
-  public boolean isUsed() {
-    return this.used;
-  }
-
-  public int getDataCount() {
-    this.used = true;
-    return this._documents.size()
-  }
-
-  public BaseData getData(int index) {
-    throw new Error('Not Implemented')
-  }
-
-  public InputStream getStream(int index) {
-    logger.info('getStream ' + index)
-    logger.info('' + this._documents.get(index))
-    return this._documents.get(index).getInputStream()
-  }
-
-  public Properties getProperties(int index) {
-    this.used = true;
-    def d = this._documents.get(index)
-    def p = d.getProperties()
-    logger.info("getProperties ${index} ${p} ${d}")
-    return p
-  }
-
-  public void storeStream(InputStream stream, Properties properties) throws Exception {
-    def payload = PayloadUtil.toPayload(stream)
-    this.storePayload(payload, properties);
-  }
-
-  public void storePayload(Payload payload, Properties properties) throws Exception {
-    println("Payload ${storedCount++}")
-    properties.list(System.out)
-    println('-- end properties --')
-
-    def output = this.output.get(storedCount)
-    logger.info(String.format('%s', output.toString()))
-
-    println('-- dumping payload --')
-    def input = payload.readFrom()
-    int size = 0;
-    byte[] buffer = new byte[1024];
-    while ((size = input.read(buffer)) != -1) output.write(buffer, 0, size);
-
-    println('\n-- end payload --')
-  }
-
-  void addUnusedDocuments() {
-    println('addUnusedDocuments')
-  }
-}
-
 System.setProperty("com.boomi.container.libDir", "./lib");
 System.setProperty("com.boomi.container.runAsAccount", "")
 System.setProperty("com.boomi.container.account", "TEST")
@@ -217,14 +125,25 @@ def coll = Collections.singleton('TEST')
 //ExecutionManager.createCurrentExecution(ac, 'TEST', '.', {})
 //println("currentExecution ${ExecutionManager.getCurrent()}")
 
-def documents = opts.e ? [opts.p ? new EmptyDocument(opts.p) : new EmptyDocument()] : fileNames.collect { new FileDocument(it) }
+List<InboundDocument> documents
+if (opts.e) {
+  if (opts.p) {
+    String propsFile = opts.p
+
+    documents = [new EmptyDocument(propsFile)]
+  } else {
+    documents = [new EmptyDocument()]
+  }
+} else {
+  documents = fileNames.collect { new FileDocument(it) }
+}
 
 if (hasOutputFile) {
   logger.info(String.format('outputFileName %s', outputFileName))
 }
 def context = hasOutputFile ?
-  new DataContext((List<InboundDocument>)documents, outputFileName) :
-  new DataContext((List<InboundDocument>)documents);
+  new DataContextImpl(documents, outputFileName) :
+  new DataContextImpl(documents);
 
 // TODO: // Add imports for script.
 // def importCustomizer = new ImportCustomizer()
@@ -232,33 +151,8 @@ def context = hasOutputFile ?
 def configuration = new CompilerConfiguration()
 //configuration.addCompilationCustomizers(importCustomizer)
 def sd = new groovy.lang.Binding()
-def sh = new GroovyShell(sd, configuration)
 
 sd.setProperty('dataContext', context)
-
-class ExecutionManager {
-  static def singleton = new ExecutionManager()
-  def _props = new Properties()
-  public getProperties() {
-    return _props
-  }
-  public static getCurrent() {
-    return singleton
-  }
-}
-class ExecutionUtil {
-  static Logger _logger = Logger.getLogger('script-runner')
-  public static getBaseLogger() {
-    return _logger
-  }
-  public static getDynamicProcessProperty(String key) {
-    return ExecutionManager.getCurrent().getProperties().getProperty(key)
-  }
-  public static void setDynamicProcessProperty(String key, String value, boolean persist) {
-    if (persist) _logger.info("Will persist DPP ${key}")
-    if (value != null) ExecutionManager.getCurrent().getProperties().setProperty(key, value);
-  }
-}
 
 if (opts.p) {
   String propsFile = opts.p
@@ -267,20 +161,15 @@ if (opts.p) {
 
 // TODO: load props from file into the mock execution manager's props
 
-sd.setProperty('ExecutionManager', ExecutionManager)
-sd.setProperty('ExecutionUtil', ExecutionUtil)
-sd.setProperty('DataContextImpl', DataContext)
-
 def replacements = [
-  'import com.boomi.execution.ExecutionManager': '',
+  'import com.boomi.execution.ExecutionManager':
+    'import com.forivall.boomi.ExecutionManager',
 
-  'import com.boomi.execution.ExecutionUtil': '',
+  'import com.boomi.execution.ExecutionUtil':
+    'import com.forivall.boomi.ExecutionUtil',
 
   'import com.boomi.document.scripting.DataContextImpl':
     'import com.forivall.boomi.DataContextImpl',
-
-  'DataContextImpl context = dataContext':
-    'def context = dataContext'
 ]
 def f = new File( scriptFile )
 def lastSep = scriptFile.lastIndexOf(File.separator)
@@ -296,18 +185,28 @@ String modifiedSource = f.readLines()
   }
   return it
 }).join('\n')
-def code = new GroovyCodeSource(modifiedSource,
-  scriptFile.substring(0, lastSep) + File.separator + fakeBasename,
-  "/groovy/shell"
-)
+def scriptFileName = scriptFile.substring(0, lastSep) + File.separator + fakeBasename;
+GroovyCodeSource code = AccessController.doPrivileged( new PrivilegedAction<GroovyCodeSource>() {
+  public GroovyCodeSource run() {
+    new GroovyCodeSource(modifiedSource, scriptFileName, GroovyShell.DEFAULT_CODE_BASE)
+  }
+})
+
+def classLoader = this.class.getClassLoader()
+GroovyClassLoader loader = AccessController.doPrivileged( new PrivilegedAction<GroovyClassLoader>() {
+  public GroovyClassLoader run() {
+    return new GroovyClassLoader( classLoader, CompilerConfiguration.DEFAULT );
+  }
+} );
 
 // see
 
 import com.boomi.document.scripting.ScriptingDocumentHandler
 
-def script = sh.parse(code)
+def scriptClass = loader.parseClass(code)
 
 try {
+  Script script = InvokerHelper.createScript(scriptClass, sd);
   script.run()
 } catch (Exception e) {
   def os = new ByteArrayOutputStream()
