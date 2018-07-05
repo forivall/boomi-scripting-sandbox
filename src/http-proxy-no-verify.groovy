@@ -118,7 +118,7 @@ if (IS_HTTPS) {
   TrustManager[] trustManagers
   if (HAS_TRUSTED_CERT) {
     Certificate cert = BoomiCertificateFactory.getInstance(task.accountConfig)
-            .getPublicCertificate(CERT_ID, task.directory)
+      .getPublicCertificate(CERT_ID, task.directory)
     ks.setCertificateEntry(url.host, cert)
 
     TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
