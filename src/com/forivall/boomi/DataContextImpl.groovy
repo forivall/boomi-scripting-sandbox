@@ -9,26 +9,28 @@ import com.boomi.store.BaseData
 
 import java.util.logging.Logger
 
+
+interface DataContextOutput {
+  OutputStream get(int index)
+}
+class FileOutput implements DataContextOutput {
+  String outPath = 'output%d.json'
+  OutputStream get(int index) {
+    return new FileOutputStream(String.format(outPath, index), true)
+  }
+}
+class PipeOutput implements DataContextOutput {
+  OutputStream dest = System.out
+  OutputStream get(int index) {
+    return dest
+  }
+}
+
 class DataContextImpl {
 
   def logger = Logger.getLogger('script-runner')
   def foo = logger.info('Loading DataContextImpl')
 
-  static interface DataContextOutput {
-    OutputStream get(int index)
-  }
-  static class FileOutput implements DataContextOutput {
-    String outPath = 'output%d.json'
-    OutputStream get(int index) {
-      return new FileOutputStream(String.format(outPath, index), true)
-    }
-  }
-  static class PipeOutput implements DataContextOutput {
-    OutputStream dest = System.out
-    OutputStream get(int index) {
-      return dest
-    }
-  }
   private static systemOut = new PipeOutput(dest: System.out)
   protected static logger = Logger.getLogger('DataContext')
   private boolean used;

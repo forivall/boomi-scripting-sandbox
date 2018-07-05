@@ -3,7 +3,8 @@ package com.forivall.boomi
 import java.util.logging.Logger
 
 class ExecutionUtil {
-  static Logger _logger = Logger.getLogger('script-runner')
+  static Logger _logger = Logger.getGlobal()
+
   public static getBaseLogger() {
     return _logger
   }

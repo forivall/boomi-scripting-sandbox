@@ -10,14 +10,14 @@ import com.forivall.boomi.DataContextImpl
 import com.forivall.boomi.ExecutionManager
 import com.forivall.boomi.ExecutionTask
 import com.forivall.boomi.ExecutionUtil
-import groovy.transform.Field
 import org.codehaus.groovy.control.CompilerConfiguration
-import org.codehaus.groovy.control.customizers.ImportCustomizer
 import org.codehaus.groovy.runtime.InvokerHelper
 
 import java.security.AccessController
 import java.security.PrivilegedAction
 import java.util.logging.ConsoleHandler
+import java.util.logging.Level
+import java.util.logging.LogManager
 import java.util.logging.Logger
 
 def __dirname = new File((String)(getClass().protectionDomain.codeSource.location.path)).parent
@@ -31,13 +31,22 @@ cli.o longOpt: 'output', args: 1, 'define output file pattern'
 opts = cli.parse(args)
 if (opts.h) {
   cli.usage()
+
   return
 }
 def outputArg = opts.o
 def hasOutputFile = (Boolean)outputArg
 String outputFileName = outputArg instanceof String ? outputArg : null
 def args = opts.arguments()
-def (scriptFile, fileNames) = [args.head(), args.tail()]
+if (args.size() == 0) {
+  System.err.println('At least 1 argument required\n')
+  cli.usage()
+  System.exit(1)
+
+  return
+}
+def scriptFile = args.head()
+def fileNames = args.tail()
 if (!scriptFile) {
   cli.usage()
   System.exit(1)
@@ -52,7 +61,16 @@ if (fileNames.size() > 0 && opts.e) {
   return
 }
 
-def logger = Logger.getLogger('script-runner')
+def logger = Logger.getGlobal()
+def p = logger
+while (p != null) {
+  p.level = Level.ALL
+  p.handlers.each {h ->
+    h.level = Level.ALL
+  }
+  if (!p.useParentHandlers) break
+  p = p.parent
+}
 
 class EmptyDocument implements InboundDocument {
   InputStream _is
@@ -156,7 +174,7 @@ sd.setProperty('dataContext', context)
 
 if (opts.p) {
   String propsFile = opts.p
-  ExecutionManager.getCurrent().getProperties().load(new FileInputStream(propsFile))
+  ExecutionManager.current.getProperties().load(new FileInputStream(propsFile))
 }
 
 // TODO: load props from file into the mock execution manager's props
@@ -177,7 +195,7 @@ def basename = scriptFile.substring(lastSep + File.separator.length())
 def fakeBasename = basename.replace('-', '_')
 // modify the file so that it uses our custom ExecutionManager
 String modifiedSource = f.readLines()
-  .collect({
+  .collect({ String it ->
   for (entry in replacements.entrySet()) {
     if (it.startsWith(entry.key)) {
       return it.replace(entry.key, entry.value)
@@ -186,18 +204,23 @@ String modifiedSource = f.readLines()
   return it
 }).join('\n')
 def scriptFileName = scriptFile.substring(0, lastSep) + File.separator + fakeBasename;
-GroovyCodeSource code = AccessController.doPrivileged( new PrivilegedAction<GroovyCodeSource>() {
-  public GroovyCodeSource run() {
-    new GroovyCodeSource(modifiedSource, scriptFileName, GroovyShell.DEFAULT_CODE_BASE)
-  }
-})
+def code = new GroovyCodeSource(modifiedSource, (String) scriptFileName, "/groovy/shell")
+//GroovyCodeSource code = AccessController.doPrivileged( new PrivilegedAction<GroovyCodeSource>() {
+//  public GroovyCodeSource run() {
+//    // 2.6
+//    // new GroovyCodeSource(modifiedSource, (String) scriptFileName, GroovyShell.DEFAULT_CODE_BASE)
+//    new GroovyCodeSource(modifiedSource, (String) scriptFileName, "/groovy/shell")
+//  }
+//})
+//
 
 def classLoader = this.class.getClassLoader()
-GroovyClassLoader loader = AccessController.doPrivileged( new PrivilegedAction<GroovyClassLoader>() {
-  public GroovyClassLoader run() {
-    return new GroovyClassLoader( classLoader, CompilerConfiguration.DEFAULT );
-  }
-} );
+def loader = new GroovyClassLoader( classLoader, CompilerConfiguration.DEFAULT )
+//GroovyClassLoader loader = AccessController.doPrivileged( new PrivilegedAction<GroovyClassLoader>() {
+//  public GroovyClassLoader run() {
+//    return new GroovyClassLoader( classLoader, CompilerConfiguration.DEFAULT );
+//  }
+//} );
 
 // see
 
@@ -215,3 +238,5 @@ try {
   def s = os.toString('utf-8')
   logger.severe(s.replace(fakeBasename, basename))
 }
+
+ExecutionManager.singletonTask.dumpDirtyProperties(System.out)
