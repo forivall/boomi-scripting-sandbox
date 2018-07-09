@@ -60,7 +60,7 @@ int QUERY_PREFIX_LEN = QUERY_PREFIX.length()
 pathParts = []
 
 1.upto(9) { n ->
-  pathPart = execProps.getProperty("param_path$n")
+  def pathPart = execProps.getProperty("param_path$n")
   if (pathPart != null && pathPart.size() > 0) {
     pathParts << pathPart
   }
