@@ -193,6 +193,11 @@ def f = new File( scriptFile )
 def lastSep = scriptFile.lastIndexOf(File.separator)
 def basename = scriptFile.substring(lastSep + File.separator.length())
 def fakeBasename = basename.replace('-', '_')
+
+if ((~/^[0-9]/).matcher(fakeBasename).lookingAt()) {
+  fakeBasename = '_' + fakeBasename
+}
+
 // modify the file so that it uses our custom ExecutionManager
 String modifiedSource = f.readLines()
   .collect({ String it ->
@@ -204,6 +209,7 @@ String modifiedSource = f.readLines()
   return it
 }).join('\n')
 def scriptFileName = scriptFile.substring(0, lastSep) + File.separator + fakeBasename;
+
 def code = new GroovyCodeSource(modifiedSource, (String) scriptFileName, "/groovy/shell")
 //GroovyCodeSource code = AccessController.doPrivileged( new PrivilegedAction<GroovyCodeSource>() {
 //  public GroovyCodeSource run() {
