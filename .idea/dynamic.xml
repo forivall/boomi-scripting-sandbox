@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="DynamicElementsStorage">
+    <option name="containingClasses">
+      <map>
+        <entry key="debug">
+          <value>
+            <DClassElement>
+              <option name="name" value="debug" />
+              <option name="myName" value="debug" />
+              <option name="myProperties">
+                <set>
+                  <DPropertyElement>
+                    <option name="name" value="dataContext" />
+                    <option name="static" value="false" />
+                    <option name="type" value="com.boomi.document.scripting.DataContextImpl" />
+                    <option name="myType" value="com.boomi.document.scripting.DataContextImpl" />
+                    <option name="myStatic" value="false" />
+                    <option name="myName" value="dataContext" />
+                  </DPropertyElement>
+                </set>
+              </option>
+            </DClassElement>
+          </value>
+        </entry>
+        <entry key="http-proxy-inline-cert">
+          <value>
+            <DClassElement>
+              <option name="name" value="http-proxy-inline-cert" />
+              <option name="myName" value="http-proxy-inline-cert" />
+              <option name="myProperties">
+                <set>
+                  <DPropertyElement>
+                    <option name="name" value="dataContext" />
+                    <option name="static" value="false" />
+                    <option name="type" value="com.boomi.document.scripting.DataContextImpl" />
+                    <option name="myType" value="com.boomi.document.scripting.DataContextImpl" />
+                    <option name="myStatic" value="false" />
+                    <option name="myName" value="dataContext" />
+                  </DPropertyElement>
+                </set>
+              </option>
+            </DClassElement>
+          </value>
+        </entry>
+        <entry key="http-proxy-no-verify">
+          <value>
+            <DClassElement>
+              <option name="name" value="http-proxy-no-verify" />
+              <option name="myName" value="http-proxy-no-verify" />
+              <option name="myProperties">
+                <set>
+                  <DPropertyElement>
+                    <option name="name" value="dataContext" />
+                    <option name="static" value="false" />
+                    <option name="type" value="com.boomi.document.scripting.DataContextImpl" />
+                    <option name="myType" value="com.boomi.document.scripting.DataContextImpl" />
+                    <option name="myStatic" value="false" />
+                    <option name="myName" value="dataContext" />
+                  </DPropertyElement>
+                </set>
+              </option>
+            </DClassElement>
+          </value>
+        </entry>
+        <entry key="http-proxy">
+          <value>
+            <DClassElement>
+              <option name="name" value="http-proxy" />
+              <option name="myName" value="http-proxy" />
+              <option name="myProperties">
+                <set>
+                  <DPropertyElement>
+                    <option name="name" value="dataContext" />
+                    <option name="static" value="false" />
+                    <option name="type" value="com.boomi.document.scripting.DataContextImpl" />
+                    <option name="myType" value="com.boomi.document.scripting.DataContextImpl" />
+                    <option name="myStatic" value="false" />
+                    <option name="myName" value="dataContext" />
+                  </DPropertyElement>
+                </set>
+              </option>
+            </DClassElement>
+          </value>
+        </entry>
+        <entry key="http-request">
+          <value>
+            <DClassElement>
+              <option name="name" value="http-request" />
+              <option name="myName" value="http-request" />
+              <option name="myProperties">
+                <set>
+                  <DPropertyElement>
+                    <option name="name" value="dataContext" />
+                    <option name="static" value="false" />
+                    <option name="type" value="com.boomi.document.scripting.DataContextImpl" />
+                    <option name="myType" value="com.boomi.document.scripting.DataContextImpl" />
+                    <option name="myStatic" value="false" />
+                    <option name="myName" value="dataContext" />
+                  </DPropertyElement>
+                </set>
+              </option>
+            </DClassElement>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+</project>

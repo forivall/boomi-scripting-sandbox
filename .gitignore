@@ -1,2 +1,4 @@
 /lib/*.idea/dictionaries
 .idea/workspace.xml
+/.idea/dictionaries/*.xml
+/target
