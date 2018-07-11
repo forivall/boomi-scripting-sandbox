@@ -13,7 +13,7 @@ Use IntelliJ IDEA.
 
 Load the project.
 
-Write a custom processing step in groovy in the "src" directory
+Write a custom processing step in groovy in the "scripts" directory
 
 Open a terminal emulator
 

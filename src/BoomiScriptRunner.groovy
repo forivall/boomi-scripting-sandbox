@@ -107,7 +107,8 @@ class FileDocument implements InboundDocument {
   String _fileName
   FileDocument(String fileName) {
     _fileName = fileName
-    _is = new FileInputStream(fileName)
+    _is = new BufferedInputStream(new FileInputStream(fileName))
+    _is.mark(0)
     _p = new Properties()
     try {
       _p.load(new FileInputStream(fileName + '.properties'))
