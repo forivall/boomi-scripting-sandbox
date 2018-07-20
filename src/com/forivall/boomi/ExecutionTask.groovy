@@ -23,6 +23,13 @@ class ExecutionTask {
     return value
   }
 
+  public getDefinedProperty(String componentId, String propId) {
+    return this.manager._props.get(buildPropertyName(componentId, propId));
+  }
+  private static String buildPropertyName(String componentId, String propertyKey) {
+    return componentId + propertyKey;
+  }
+
 
   public void setProperty(String name, String value) {
     this.setProperty(name, value, false);

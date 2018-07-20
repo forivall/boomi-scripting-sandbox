@@ -1,40 +1,38 @@
 #!/usr/bin/env groovy -cp "vendor/boomi/*"
-import com.boomi.connector.api.Payload
-import com.boomi.connector.api.PayloadUtil
 import com.boomi.container.config.AccountConfig
 import com.boomi.container.config.ContainerConfig
 import com.boomi.document.api.InboundDocument
 
-import com.boomi.store.BaseData
 import com.forivall.boomi.DataContextImpl
 import com.forivall.boomi.ExecutionManager
-import com.forivall.boomi.ExecutionTask
-import com.forivall.boomi.ExecutionUtil
+import com.forivall.util.ResettableFileInputStream
 import org.codehaus.groovy.control.CompilerConfiguration
 import org.codehaus.groovy.runtime.InvokerHelper
 
-import java.security.AccessController
-import java.security.PrivilegedAction
-import java.util.logging.ConsoleHandler
+//import java.security.AccessController
+//import java.security.PrivilegedAction
 import java.util.logging.Level
-import java.util.logging.LogManager
 import java.util.logging.Logger
 
 def __dirname = new File((String)(getClass().protectionDomain.codeSource.location.path)).parent
 
 def cli = new CliBuilder(usage: 'groovy-script-runner -[e] [-p <processProps>] <script> [files] ')
 // Create the list of options.
-cli.h longOpt: 'help', 'show this message'
-cli.e longOpt: 'empty', 'generate a single entry input file'
-cli.p longOpt: 'props', args: 1, 'define process properties file'
-cli.o longOpt: 'output', args: 1, 'define output file pattern'
-opts = cli.parse(args)
-if (opts.h) {
+cli.options.addOption cli.option('h', [longOpt: 'help'], 'show this message')
+cli.options.addOption cli.option('e', [longOpt: 'empty'], 'generate a single entry input file')
+cli.options.addOption cli.option('p', [longOpt: 'props', args: 1], 'define process properties file')
+cli.options.addOption cli.option('d', [longOpt: 'docprops', args: 1], 'define document properties file')
+cli.options.addOption cli.option('o', [longOpt: 'output', args: 1], 'define output file pattern')
+OptionAccessor opts = cli.parse(args)
+
+if (opts == null) return
+if (opts.getProperty('help')) {
   cli.usage()
 
   return
 }
-def outputArg = opts.o
+
+def outputArg = opts.getProperty('output')
 def hasOutputFile = (Boolean)outputArg
 String outputFileName = outputArg instanceof String ? outputArg : null
 def args = opts.arguments()
@@ -54,7 +52,7 @@ if (!scriptFile) {
 }
 assert scriptFile instanceof String
 
-if (fileNames.size() > 0 && opts.e) {
+if (fileNames.size() > 0 && opts.getProperty('empty')) {
   println('cannot specify empty input and input files at the same time')
   cli.usage()
   System.exit(1)
@@ -75,13 +73,22 @@ while (p != null) {
 class EmptyDocument implements InboundDocument {
   InputStream _is
   Properties _p
+  EmptyDocument() {
+    _is = new ByteArrayInputStream(new byte[0])
+    _p = new Properties()
+  }
   EmptyDocument(String propertiesFile) {
     this()
     _p.load(new FileInputStream(propertiesFile))
   }
-  EmptyDocument() {
-    _is = new ByteArrayInputStream(new byte[0])
-    _p = new Properties()
+  EmptyDocument(List<String> propertiesFiles) {
+    this()
+    def props = _p
+    def logger = Logger.getGlobal()
+    propertiesFiles.each { String propertiesFile ->
+      logger.fine("loading ${propertiesFile}...")
+      props.load(new FileInputStream(propertiesFile))
+    }
   }
   InputStream getInputStream() {
     return _is
@@ -101,18 +108,26 @@ class EmptyDocument implements InboundDocument {
     return _p
   }
 }
+
+
 class FileDocument implements InboundDocument {
   InputStream _is
   Properties _p
   String _fileName
-  FileDocument(String fileName) {
+  FileDocument(String fileName, List<String> propertiesFiles = []) {
     _fileName = fileName
-    _is = new BufferedInputStream(new FileInputStream(fileName))
-    _is.mark(0)
+    _is = new ResettableFileInputStream(fileName)
     _p = new Properties()
     try {
       _p.load(new FileInputStream(fileName + '.properties'))
     } catch (FileNotFoundException) {}
+
+    def props = _p
+    def logger = Logger.getGlobal()
+    propertiesFiles.each { String propertiesFile ->
+      logger.fine("loading ${propertiesFile}...")
+      props.load(new FileInputStream(propertiesFile))
+    }
   }
 
   InputStream getInputStream() {
@@ -145,16 +160,20 @@ def coll = Collections.singleton('TEST')
 //println("currentExecution ${ExecutionManager.getCurrent()}")
 
 List<InboundDocument> documents
-if (opts.e) {
-  if (opts.p) {
-    String propsFile = opts.p
 
-    documents = [new EmptyDocument(propsFile)]
+if (opts.getProperty('docpropss')) {
+  List<String> propsFiles = opts.getProperty('docpropss')
+  if (opts.getProperty('empty')) {
+    documents = [new EmptyDocument(propsFiles)]
   } else {
-    documents = [new EmptyDocument()]
+    documents = fileNames.collect { String fileName -> new FileDocument(fileName, propsFiles) }
   }
 } else {
-  documents = fileNames.collect { new FileDocument(it) }
+  if (opts.getProperty('empty')) {
+    documents = [new EmptyDocument()]
+  } else {
+    documents = fileNames.collect { String fileName -> new FileDocument(fileName) }
+  }
 }
 
 if (hasOutputFile) {
@@ -173,9 +192,12 @@ def sd = new groovy.lang.Binding()
 
 sd.setProperty('dataContext', context)
 
-if (opts.p) {
-  String propsFile = opts.p
-  ExecutionManager.current.getProperties().load(new FileInputStream(propsFile))
+if (opts.getProperty('propss')) {
+  List<String> propsFiles = opts.getProperty('propss')
+  def props = ExecutionManager.current.getProperties()
+  propsFiles.each { String propsFile ->
+    props.load(new FileInputStream(propsFile))
+  }
 }
 
 // TODO: load props from file into the mock execution manager's props
@@ -230,9 +252,6 @@ def loader = new GroovyClassLoader( classLoader, CompilerConfiguration.DEFAULT )
 //} );
 
 // see
-
-import com.boomi.document.scripting.ScriptingDocumentHandler
-
 def scriptClass = loader.parseClass(code)
 
 try {
